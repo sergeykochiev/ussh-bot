@@ -17,6 +17,7 @@ type Shell struct {
 	cmd     *exec.Cmd
 	in      io.WriteCloser
 	out     io.ReadCloser
+	err     io.ReadCloser
 	outChan chan string
 }
 
@@ -27,13 +28,18 @@ func (sh *Shell) Init() (err error) {
 	if err != nil {
 		return
 	}
+	sh.err, err = sh.cmd.StderrPipe()
+	if err != nil {
+		return
+	}
 	sh.in, err = sh.cmd.StdinPipe()
 	return
 }
 
 func (sh *Shell) Start() {
 	go sh.cmd.Run()
-	go sh.goReadOutput()
+	go sh.StartReading(sh.out)
+	go sh.StartReading(sh.err)
 }
 
 func (sh *Shell) Run(cmd string) error {
@@ -41,8 +47,8 @@ func (sh *Shell) Run(cmd string) error {
 	return err
 }
 
-func (sh *Shell) goReadOutput() {
-	reader := bufio.NewReader(sh.out)
+func (sh *Shell) StartReading(r io.ReadCloser) {
+	reader := bufio.NewReader(r)
 	for {
 		output, err := reader.ReadString('\n')
 		if err != nil {
@@ -121,7 +127,11 @@ func main() {
 
 			log.Print("Running command: ", command)
 
-			shell.Run(command)
+			err = shell.Run(command + "\n")
+
+			if err != nil {
+				log.Print("Error running command: ", err)
+			}
 		}
 	}
 }
