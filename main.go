@@ -115,7 +115,7 @@ func main() {
 
 			text := message.Text
 			if text[0] != '$' {
-				return
+				continue
 			}
 			command := text[2:]
 
